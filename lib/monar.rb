@@ -14,14 +14,23 @@ module Applicative
   end
 
   def ap(*targets)
+    recursive_flat_map(targets)
+  end
+
+  def pure(value)
+    self.class.pure(value)
+  end
+
+  private
+
+  def recursive_flat_map(targets, *extracted)
     t = targets.shift
     if t
-      curried = @value.curry
-
-      new_applicative = t.fmap(&curried)
-      new_applicative.applicative(*targets)
+      t.flat_map do |v|
+        return recursive_flat_map(targets, *extracted, v)
+      end
     else
-      self
+      pure(@value.call(*extracted))
     end
   end
 
@@ -84,7 +93,7 @@ module Monad
         rhv = block_node_last_stmt.children[1].children[2]
         buf[0].concat("(#{Monad.extract_source(source, rhv.first_lineno, rhv.first_column, rhv.last_lineno, rhv.last_column).chomp}).tap { |val| raise('type_mismatch') unless val.is_a?(monad_class) }.flat_map do |#{lvar}|\npure(#{lvar})\nend\n")
       else
-        buf[0].concat("(#{Monad.extract_source(source, block_node_last_stmt.first_lineno, block_node_last_stmt.first_column, block_node_last_stmt.last_lineno, block_node_last_stmt.last_column).chomp}).tap { |x| raise('type_mismatch') unless x.is_a?(self.monad_class) }\n")
+        buf[0].concat("(#{Monad.extract_source(source, block_node_last_stmt.first_lineno, block_node_last_stmt.first_column, block_node_last_stmt.last_lineno, block_node_last_stmt.last_column).chomp}).tap { |x| raise('type_mismatch') unless x.is_a?(monad_class) }\n")
       end
       buf[0].concat("end\n" * buf[1])
       gen = "proc do\n" + buf[0] + "end\n"
@@ -96,10 +105,6 @@ module Monad
   end
 
   private
-
-  def pure(value)
-    self.class.pure(value)
-  end
 
   def monad_class
     self.class

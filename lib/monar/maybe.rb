@@ -1,4 +1,16 @@
 module Monar::Maybe
+  module ToplevelSyntax
+    refine Kernel do
+      def Just(value)
+        Monar::Maybe.just(value)
+      end
+
+      def Nothing
+        Monar::Maybe.nothing
+      end
+    end
+  end
+
   class << self
     def just(value)
       Just.new(value)
@@ -27,18 +39,6 @@ module Monar::Maybe
 
     def fmap(&pr)
       self.pure(pr.call(@value))
-    end
-
-    def ap(*targets)
-      t = targets.shift
-      if t
-        curried = @value.curry
-
-        new_applicative = t.fmap(&curried)
-        new_applicative.applicative(*targets)
-      else
-        self
-      end
     end
 
     def flat_map(&pr)

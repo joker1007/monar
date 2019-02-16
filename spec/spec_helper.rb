@@ -1,6 +1,7 @@
 require "bundler/setup"
 require "monar"
 require "monar/maybe"
+require "monar/either"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
