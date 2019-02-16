@@ -14,7 +14,13 @@ module Applicative
   end
 
   def ap(*targets)
-    recursive_flat_map(targets)
+    curried = ->(*extracted) { fmap { |pr| pr.call(*extracted) } }.curry(targets.size)
+    applied = targets.inject(pure(curried)) do |ppr, t|
+      ppr.flat_map do |pr|
+        t.fmap { |v| pr.call(v) }
+      end
+    end
+    applied.flat_map(&:itself)
   end
 
   def pure(value)
@@ -23,15 +29,7 @@ module Applicative
 
   private
 
-  def recursive_flat_map(targets, *extracted)
-    t = targets.shift
-    if t
-      t.flat_map do |v|
-        return recursive_flat_map(targets, *extracted, v)
-      end
-    else
-      pure(@value.call(*extracted))
-    end
+  def recursive_flat_map2(targets)
   end
 
   module ClassMethods

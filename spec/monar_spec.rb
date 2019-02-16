@@ -68,4 +68,39 @@ RSpec.describe Monar do
       expect(either_calc.ap(Right(2), Left("hoge"), Right(5))).to eq(Left("hoge"))
     end
   end
+
+  describe Array do
+    Array.include(Monad)
+    def Array.pure(value)
+      [value]
+    end
+
+    it "acts as monad" do
+      calc = ->(*val) do
+        val.monad do |x|
+          a = x.odd? ? x : x / 2
+          y <<= [a + 14]
+          z <<= [y, y + 1, y + 2]
+        end
+      end
+
+      expect(calc.call(1, 2, 3)).to eq([15, 16, 17, 15, 16, 17, 17, 18, 19])
+      expect(calc.call(7, 8)).to eq([21, 22, 23, 18, 19, 20])
+    end
+
+    it "acts as applicative" do
+      array_plus = [:+.to_proc]
+
+      expect(array_plus.ap([2, 3], [4])).to eq([6, 7])
+      expect(array_plus.ap([2, 3], [5, 6, 7])).to eq([7, 8, 9, 8, 9, 10])
+      expect(array_plus.ap([2, 3], [])).to eq([])
+    end
+
+    it "can apply function having 3+ args" do
+      array_calc = [->(a, b, c) { a * b + c }]
+
+      expect(array_calc.ap([2, 3], [4], [5, 6, 7])).to eq([13, 14, 15, 17, 18, 19])
+      expect(array_calc.ap([2, 3], [], [5, 6, 7])).to eq([])
+    end
+  end
 end
