@@ -76,9 +76,9 @@ module Monad
       caller_location = caller_locations(1, 1)[0]
       end_count = 1
       initial_buf = [
-        "self.flat_map #{"\\\n" * (ast.first_lineno - caller_location.lineno)} do |#{"\\\n" * (args_node.first_lineno - ast.first_lineno)}#{block_arg}#{"\\\n" * (block_node.first_lineno - args_node.last_lineno)}|\n",
+        "self.flat_map #{"\\\n" * (ast.first_lineno - caller_location.lineno)} do |#{"\\\n" * (args_node.first_lineno - ast.first_lineno)}#{block_arg}#{"\\\n" * [(block_node.first_lineno - args_node.last_lineno - 1), 0].max}|\n",
         end_count,
-        block_node.first_lineno
+        args_node.last_lineno
       ]
       buf = block_node_stmts.inject(initial_buf) do |buf, stmt_node|
         if buf[2] == stmt_node.first_lineno
@@ -88,6 +88,9 @@ module Monad
         if __flat_map_target?(stmt_node)
           lvar = stmt_node.children[0]
           rhv = stmt_node.children[1].children[2]
+          if stmt_node.first_lineno < stmt_node.last_lineno
+            buf[0].concat("#{"\n" * (stmt_node.last_lineno - stmt_node.first_lineno)}")
+          end
           buf[0].concat("(#{Monad.extract_source(source, rhv.first_lineno, rhv.first_column, rhv.last_lineno, rhv.last_column).chomp}).tap { |val| raise('type_mismatch') unless val.is_a?(monad_class) }.flat_map do |#{lvar}|\n")
           buf[1] += 1
         else
@@ -105,6 +108,9 @@ module Monad
       if __flat_map_target?(block_node_last_stmt)
         lvar = block_node_last_stmt.children[0]
         rhv = block_node_last_stmt.children[1].children[2]
+        if block_node_last_stmt.first_lineno < block_node_last_stmt.last_lineno
+          buf[0].concat("#{"\n" * (block_node_last_stmt.last_lineno - block_node_last_stmt.first_lineno)}")
+        end
         buf[0].concat("(#{Monad.extract_source(source, rhv.first_lineno, rhv.first_column, rhv.last_lineno, rhv.last_column).chomp}).tap { |val| raise('type_mismatch') unless val.is_a?(monad_class) }.flat_map do |#{lvar}|\npure(#{lvar})\nend\n")
       else
         buf[0].concat("(#{Monad.extract_source(source, block_node_last_stmt.first_lineno, block_node_last_stmt.first_column, block_node_last_stmt.last_lineno, block_node_last_stmt.last_column).chomp}).tap { |x| raise('type_mismatch') unless x.is_a?(monad_class) }\n")
