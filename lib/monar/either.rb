@@ -34,6 +34,12 @@ module Monar::Either
   def ==(other)
     other.is_a?(Monar::Either) && value == other.value
   end
+
+  private
+
+  def rescue_in_monad(ex)
+    Left.new(ex)
+  end
   
   class Right
     include Monad

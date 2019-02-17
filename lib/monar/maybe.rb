@@ -28,6 +28,12 @@ module Monar::Maybe
   def ==(other)
     other.is_a?(Monar::Maybe) && value == other.value
   end
+
+  private
+
+  def rescue_in_monad(ex)
+    Nothing.new
+  end
   
   class Just
     include Monad

@@ -94,9 +94,9 @@ module Monad
         buf[0].concat("(#{Monad.extract_source(source, block_node_last_stmt.first_lineno, block_node_last_stmt.first_column, block_node_last_stmt.last_lineno, block_node_last_stmt.last_column).chomp}).tap { |x| raise('type_mismatch') unless x.is_a?(monad_class) }\n")
       end
       buf[0].concat("end\n" * buf[1])
-      gen = "proc do\n" + buf[0] + "end\n"
+      gen = "proc { begin; " + buf[0] + "rescue => ex; rescue_in_monad(ex); end; }\n"
       puts gen
-      pr = instance_eval(gen, block_location[0], block_location[1] - 1)
+      pr = instance_eval(gen, block_location[0], block_location[1])
       Monad.proc_cache["#{block_location[0]}:#{block_location[1]}"] = pr
     end
     instance_eval(&pr)
@@ -112,5 +112,9 @@ module Monad
     (node.type == :DASGN || node.type == :DASGN_CURR) &&
       node.children[1].type == :CALL &&
       node.children[1].children[1] == :<<
+  end
+
+  def rescue_in_monad(ex)
+    raise ex
   end
 end

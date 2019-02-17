@@ -25,6 +25,26 @@ RSpec.describe Monar do
       expect(calc.call(2)).to eq(Nothing())
     end
 
+    it "returns Nothing if exception is occured in monad" do
+      calc = ->(val) do
+        Just(val).monad do |x|
+          a = x
+          y <<= pure(a + 14)
+          raise "error"
+          z <<= case y
+                when :prime?.to_proc
+                  Monar::Maybe.just(y)
+                when 20
+                  Monar::Maybe.just(y)
+                else
+                  Monar::Maybe.nothing
+                end
+        end
+      end
+
+      expect(calc.call(3)).to eq(Nothing())
+    end
+
     it "acts as applicative" do
       maybe_plus = Just(:+.to_proc)
 
@@ -52,6 +72,21 @@ RSpec.describe Monar do
 
       expect(calc.call(3)).to eq(Right(17))
       expect(calc.call(7).value).to be_a(RuntimeError)
+    end
+
+    it "returns Left(ex) if exception is occured in monad" do
+      calc = ->(val) do
+        Right(val).monad do |x|
+          a = x.odd? ? x : x / 2
+          y <<= pure(a + 14)
+          raise "error"
+          z <<= rescue_all { y.prime? ? y : raise("not prime") }
+        end
+      end
+
+      result = calc.call(3)
+      expect(result).to be_a(Monar::Either::Left)
+      expect(result.value).to be_a(RuntimeError)
     end
 
     it "acts as applicative" do
@@ -133,9 +168,19 @@ RSpec.describe Monar do
 
       def flat_map(&pr)
         yield value!
-      rescue
-        self
+      rescue => ex
+        if rejected?
+          self
+        else
+          Concurrent::Promises.rejected_future(ex)
+        end
       end
+
+      private
+
+      # def rescue_in_monad(ex)
+        # Concurrent::Promises.rejected_future(ex)
+      # end
     end
 
     it "acts as monad" do
@@ -156,7 +201,9 @@ RSpec.describe Monar do
     it "acts as monad (rejected)" do
       calc = ->(val) do
         val.monad do |x|
-          a = x.odd? ? x : x / 2
+          a = x.odd? ?
+            x :
+            x / 2
           b = Concurrent::Promises.future { sleep 2; 11 }
           c = Concurrent::Promises.future { sleep 1; raise "failed" }
           d <<= b
@@ -165,7 +212,31 @@ RSpec.describe Monar do
           pure(y + 2)
         end
       end
-      expect(calc.call(Concurrent::Promises.make_future(5)).reason).to be_a(RuntimeError)
+
+      result = calc.call(Concurrent::Promises.make_future(5))
+      expect(result.reason).to be_a(RuntimeError)
+      expect(result.reason.message).to eq("failed")
+    end
+
+    it "returns rejected Future if exception is occured in monad" do
+      calc = ->(val) do
+        val.monad do |x|
+          a = x.odd? ?
+            x :
+            x / 2
+          b = Concurrent::Promises.future { sleep 2; 11 }
+          raise "error"
+          c = Concurrent::Promises.future { sleep 1; raise "failed" }
+          d <<= b
+          e <<= c
+          y <<= pure(a + d + e)
+          pure(y + 2)
+        end
+      end
+
+      result = calc.call(Concurrent::Promises.make_future(5))
+      expect(result.reason).to be_a(RuntimeError)
+      expect(result.reason.message).to eq("error")
     end
   end
 end
