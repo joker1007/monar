@@ -80,41 +80,12 @@ module Monad
         end_count,
         args_node.last_lineno
       ]
+
       buf = block_node_stmts.inject(initial_buf) do |buf, stmt_node|
-        if buf[2] == stmt_node.first_lineno
-          buf[0].chop!.concat("; ")
-        end
-
-        if __flat_map_target?(stmt_node)
-          lvar = stmt_node.children[0]
-          rhv = stmt_node.children[1].children[2]
-          if stmt_node.first_lineno < stmt_node.last_lineno
-            buf[0].concat("#{"\n" * (stmt_node.last_lineno - stmt_node.first_lineno)}")
-          end
-          buf[0].concat("(#{Monad.extract_source(source, rhv.first_lineno, rhv.first_column, rhv.last_lineno, rhv.last_column).chomp}).tap { |val| raise('type_mismatch') unless val.is_a?(monad_class) }.flat_map do |#{lvar}|\n")
-          buf[1] += 1
-        else
-          buf[0].concat("(#{Monad.extract_source(source, stmt_node.first_lineno, stmt_node.first_column, stmt_node.last_lineno, stmt_node.last_column).chomp})\n")
-        end
-
-        buf[2] = stmt_node.last_lineno
-        buf
+        __transform_node(source, buf, stmt_node)
       end
 
-      if buf[2] == block_node_last_stmt.first_lineno
-        buf[0].chop!.concat("; ")
-      end
-
-      if __flat_map_target?(block_node_last_stmt)
-        lvar = block_node_last_stmt.children[0]
-        rhv = block_node_last_stmt.children[1].children[2]
-        if block_node_last_stmt.first_lineno < block_node_last_stmt.last_lineno
-          buf[0].concat("#{"\n" * (block_node_last_stmt.last_lineno - block_node_last_stmt.first_lineno)}")
-        end
-        buf[0].concat("(#{Monad.extract_source(source, rhv.first_lineno, rhv.first_column, rhv.last_lineno, rhv.last_column).chomp}).tap { |val| raise('type_mismatch') unless val.is_a?(monad_class) }.flat_map do |#{lvar}|\npure(#{lvar})\nend\n")
-      else
-        buf[0].concat("(#{Monad.extract_source(source, block_node_last_stmt.first_lineno, block_node_last_stmt.first_column, block_node_last_stmt.last_lineno, block_node_last_stmt.last_column).chomp}).tap { |x| raise('type_mismatch') unless x.is_a?(monad_class) }\n")
-      end
+      __transform_node(source, buf, block_node_last_stmt, last_stmt: true)
 
       buf[0].concat("end\n" * buf[1])
       gen = "proc { begin; " + buf[0] + "rescue => ex; rescue_in_monad(ex); end; }\n"
@@ -129,6 +100,27 @@ module Monad
 
   def monad_class
     self.class
+  end
+
+  def __transform_node(source, buf, node, last_stmt: false)
+    if buf[2] == node.first_lineno
+      buf[0].chop!.concat("; ")
+    end
+
+    if __flat_map_target?(node)
+      lvar = node.children[0]
+      rhv = node.children[1].children[2]
+      if node.first_lineno < node.last_lineno
+        buf[0].concat("#{"\n" * (node.last_lineno - node.first_lineno)}")
+      end
+      buf[0].concat("(#{Monad.extract_source(source, rhv.first_lineno, rhv.first_column, rhv.last_lineno, rhv.last_column).chomp}).tap { |val| raise('type_mismatch') unless val.is_a?(monad_class) }.flat_map do |#{lvar}|\n#{"pure(#{lvar})\n" if last_stmt}")
+      buf[1] += 1
+    else
+      buf[0].concat("(#{Monad.extract_source(source, node.first_lineno, node.first_column, node.last_lineno, node.last_column).chomp})\n")
+    end
+
+    buf[2] = node.last_lineno
+    buf
   end
 
   def __flat_map_target?(node)
