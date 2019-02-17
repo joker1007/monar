@@ -68,11 +68,23 @@ module Monad
       source = File.readlines(block_location[0])
       ast = RubyVM::AbstractSyntaxTree.of(block); # SCOPE
       args_tbl = ast.children[0]
+      args_node = ast.children[1]
       block_arg = args_tbl[0]
       block_node = ast.children[2]
       block_node_stmts, block_node_last_stmt = block_node.children[0..-2], block_node.children[-1]
+
+      caller_location = caller_locations(1, 1)[0]
       end_count = 1
-      buf = block_node_stmts.inject(["self.flat_map do |#{block_arg}|\n", end_count]) do |buf, stmt_node|
+      initial_buf = [
+        "self.flat_map #{"\\\n" * (ast.first_lineno - caller_location.lineno)} do |#{"\\\n" * (args_node.first_lineno - ast.first_lineno)}#{block_arg}#{"\\\n" * (block_node.first_lineno - args_node.last_lineno)}|\n",
+        end_count,
+        block_node.first_lineno
+      ]
+      buf = block_node_stmts.inject(initial_buf) do |buf, stmt_node|
+        if buf[2] == stmt_node.first_lineno
+          buf[0].chop!.concat("; ")
+        end
+
         if __flat_map_target?(stmt_node)
           lvar = stmt_node.children[0]
           rhv = stmt_node.children[1].children[2]
@@ -81,8 +93,15 @@ module Monad
         else
           buf[0].concat("(#{Monad.extract_source(source, stmt_node.first_lineno, stmt_node.first_column, stmt_node.last_lineno, stmt_node.last_column).chomp})\n")
         end
+
+        buf[2] = stmt_node.last_lineno
         buf
       end
+
+      if buf[2] == block_node_last_stmt.first_lineno
+        buf[0].chop!.concat("; ")
+      end
+
       if __flat_map_target?(block_node_last_stmt)
         lvar = block_node_last_stmt.children[0]
         rhv = block_node_last_stmt.children[1].children[2]
@@ -90,10 +109,11 @@ module Monad
       else
         buf[0].concat("(#{Monad.extract_source(source, block_node_last_stmt.first_lineno, block_node_last_stmt.first_column, block_node_last_stmt.last_lineno, block_node_last_stmt.last_column).chomp}).tap { |x| raise('type_mismatch') unless x.is_a?(monad_class) }\n")
       end
+
       buf[0].concat("end\n" * buf[1])
       gen = "proc { begin; " + buf[0] + "rescue => ex; rescue_in_monad(ex); end; }\n"
       puts gen
-      pr = instance_eval(gen, block_location[0], block_location[1])
+      pr = instance_eval(gen, caller_location.path, caller_location.lineno)
       Monad.proc_cache["#{block_location[0]}:#{block_location[1]}"] = pr
     end
     instance_eval(&pr)
