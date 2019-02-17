@@ -120,4 +120,52 @@ RSpec.describe Monar do
       expect(plus.apply_as(Array, [2, 3], [4])).to eq([6, 7])
     end
   end
+
+  require "concurrent-ruby"
+  describe Concurrent::Promises::Future do
+    Concurrent::Promises::Future.include(Monad)
+    class Concurrent::Promises::Future
+      class << self
+        def pure(value)
+          Concurrent::Promises.make_future(value)
+        end
+      end
+
+      def flat_map(&pr)
+        yield value!
+      rescue
+        self
+      end
+    end
+
+    it "acts as monad" do
+      calc = ->(val) do
+        val.monad do |x|
+          a = x.odd? ? x : x / 2
+          b = Concurrent::Promises.future { sleep 2; 11 }
+          c = Concurrent::Promises.future { sleep 1; 3 }
+          d <<= b
+          e <<= c
+          y <<= pure(a + d + e)
+          pure(y + 2)
+        end
+      end
+      expect(calc.call(Concurrent::Promises.make_future(5)).value).to eq(21)
+    end
+
+    it "acts as monad (rejected)" do
+      calc = ->(val) do
+        val.monad do |x|
+          a = x.odd? ? x : x / 2
+          b = Concurrent::Promises.future { sleep 2; 11 }
+          c = Concurrent::Promises.future { sleep 1; raise "failed" }
+          d <<= b
+          e <<= c
+          y <<= pure(a + d + e)
+          pure(y + 2)
+        end
+      end
+      expect(calc.call(Concurrent::Promises.make_future(5)).reason).to be_a(RuntimeError)
+    end
+  end
 end

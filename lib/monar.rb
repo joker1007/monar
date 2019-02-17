@@ -23,8 +23,8 @@ module Applicative
     applied.flat_map(&:itself)
   end
 
-  def pure(value)
-    self.class.pure(value)
+  def pure(*value)
+    self.class.pure(*value)
   end
 
   private
@@ -33,8 +33,8 @@ module Applicative
   end
 
   module ClassMethods
-    def pure(value)
-      new(value)
+    def pure(*value)
+      new(*value)
     end
   end
 end
