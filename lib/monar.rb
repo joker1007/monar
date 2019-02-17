@@ -29,9 +29,6 @@ module Applicative
 
   private
 
-  def recursive_flat_map2(targets)
-  end
-
   module ClassMethods
     def pure(*value)
       new(*value)
