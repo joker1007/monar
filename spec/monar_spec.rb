@@ -67,6 +67,13 @@ RSpec.describe Monar do
       expect(either_calc.ap(Right(2), Right(4), Right(5))).to eq(Right(13))
       expect(either_calc.ap(Right(2), Left("hoge"), Right(5))).to eq(Left("hoge"))
     end
+
+    it "can be applied by Proc core_ext" do
+      calc = ->(a, b, c) { a * b + c }
+
+      expect(calc.apply_as(Monar::Either::Right, Right(2), Right(4), Right(5))).to eq(Right(13))
+      expect(calc.apply_as(Monar::Either::Right, Right(2), Left("hoge"), Right(5))).to eq(Left("hoge"))
+    end
   end
 
   describe Array do
@@ -94,6 +101,10 @@ RSpec.describe Monar do
       expect(array_plus.ap([2, 3], [4])).to eq([6, 7])
       expect(array_plus.ap([2, 3], [5, 6, 7])).to eq([7, 8, 9, 8, 9, 10])
       expect(array_plus.ap([2, 3], [])).to eq([])
+
+      array_multi_calc = [:+.to_proc, :*.to_proc]
+
+      expect(array_multi_calc.ap([2, 3], [4])).to eq([6, 8, 7, 12])
     end
 
     it "can apply function having 3+ args" do
@@ -101,6 +112,12 @@ RSpec.describe Monar do
 
       expect(array_calc.ap([2, 3], [4], [5, 6, 7])).to eq([13, 14, 15, 17, 18, 19])
       expect(array_calc.ap([2, 3], [], [5, 6, 7])).to eq([])
+    end
+
+    it "can be applied by Proc core_ext" do
+      plus = :+.to_proc
+
+      expect(plus.apply_as(Array, [2, 3], [4])).to eq([6, 7])
     end
   end
 end
