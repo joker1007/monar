@@ -239,4 +239,18 @@ RSpec.describe Monar do
       expect(result.reason.message).to eq("error")
     end
   end
+
+  describe Monar::State do
+    it "acts as monad" do
+      state = Monar::State.pure(5).monad do |n|
+        str <<= Monar::State.get
+        result = str * n
+        Monar::State.new(proc { |s| [result, s] })
+      end
+
+      val, st = state.run_state("str")
+      expect(val).to eq("str" * 5)
+      expect(st).to eq("str")
+    end
+  end
 end
