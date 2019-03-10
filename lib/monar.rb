@@ -59,9 +59,26 @@ module Monad
     def proc_cache
       @proc_cache ||= {}
     end
+
+    def caller_local_variables
+      @caller_local_variables ||= {}
+    end
   end
 
   def monad(&block)
+    proc_binding = nil
+    trace = TracePoint.new(:line) do |tp|
+      proc_binding = tp.binding
+      throw :escape
+    end
+
+    catch(:escape) do
+      trace.enable(target: block)
+      yield
+    ensure
+      trace.disable
+    end
+
     block_location = block.source_location
     pr = Monad.proc_cache["#{block_location[0]}:#{block_location[1]}"]
     unless pr 
@@ -69,6 +86,8 @@ module Monad
       ast = RubyVM::AbstractSyntaxTree.of(block); # SCOPE
       args_tbl = ast.children[0]
       args_node = ast.children[1]
+      caller_local_variables = proc_binding.local_variables - args_tbl
+      Monad.caller_local_variables["#{block_location[0]}:#{block_location[1]}"] = caller_local_variables
       block_arg = args_tbl[0]
       block_node = ast.children[2]
       block_node_stmts, block_node_last_stmt = block_node.children[0..-2], block_node.children[-1]
@@ -88,12 +107,15 @@ module Monad
       __transform_node(source, buf, block_node_last_stmt, last_stmt: true)
 
       buf[0].concat("end\n" * buf[1])
-      gen = "proc { begin; " + buf[0] + "rescue => ex; rescue_in_monad(ex); end; }\n"
+      gen = "proc { |#{caller_local_variables.map(&:to_s).join(",")}|  begin; " + buf[0] + "rescue => ex; rescue_in_monad(ex); end; }\n"
       puts gen
       pr = instance_eval(gen, caller_location.path, caller_location.lineno)
       Monad.proc_cache["#{block_location[0]}:#{block_location[1]}"] = pr
     end
-    instance_eval(&pr)
+    instance_exec(
+      *(Monad.caller_local_variables["#{block_location[0]}:#{block_location[1]}"].map { |lvar| proc_binding.local_variable_get(lvar) }),
+      &pr
+    )
   end
 
   private
@@ -110,8 +132,8 @@ module Monad
     if __flat_map_target?(node)
       lvar = node.children[0]
       rhv = node.children[1].children[2]
-      if node.first_lineno < node.last_lineno
-        buf[0].concat("#{"\n" * (node.last_lineno - node.first_lineno)}")
+      if node.first_lineno < rhv.first_lineno
+        buf[0].concat("#{"\n" * (rhv.first_lineno - node.first_lineno)}")
       end
       buf[0].concat("(#{Monad.extract_source(source, rhv.first_lineno, rhv.first_column, rhv.last_lineno, rhv.last_column).chomp}).tap { |val| raise('type_mismatch') unless val.is_a?(monad_class) }.flat_map do |#{lvar}|\n#{"pure(#{lvar})\n" if last_stmt}")
       buf[1] += 1
