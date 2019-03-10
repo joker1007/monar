@@ -243,14 +243,23 @@ RSpec.describe Monar do
   describe Monar::State do
     it "acts as monad" do
       state = Monar::State.pure(5).monad do |n|
-        str <<= Monar::State.get
-        result = str * n
-        Monar::State.new(proc { |s| [result, s] })
+        status <<= get
+        _ <<= if status != :saved
+                result = n * 10
+                put(:saved)
+              else
+                pure(nil)
+              end
+        pure(result)
       end
 
-      val, st = state.run_state("str")
-      expect(val).to eq("str" * 5)
-      expect(st).to eq("str")
+      val, st = state.run_state(:not_saved)
+      expect(val).to eq(50)
+      expect(st).to eq(:saved)
+
+      val, st = state.run_state(:saved)
+      expect(val).to eq(nil)
+      expect(st).to eq(:saved)
     end
   end
 end

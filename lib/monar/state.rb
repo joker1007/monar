@@ -18,6 +18,7 @@ module Monar
       end
     end
 
+    # @param next_state [Proc (s -> [a, s])]
     def initialize(next_state)
       raise ArgumentError.new("need to respond to :call") unless next_state.respond_to?(:call)
       @next_state = next_state
@@ -45,6 +46,16 @@ module Monar
 
     def run_state(s)
       @next_state.call(s)
+    end
+
+    private
+
+    def get
+      self.class.get
+    end
+
+    def put(st)
+      self.class.put(st)
     end
   end
 end
