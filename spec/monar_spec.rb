@@ -6,8 +6,8 @@ RSpec.describe Monar do
   describe Monar::Maybe do
     it "acts as monad" do
       calc = ->(val) do
-        Just(val).monad do |x|
-          a = x
+        Just(val).monad do |x, a, b, c = 1, *foo, n, m, d: nil, **opts|
+          a = x; b = :hoge
           y <<= pure(a + 14)
           z <<= case y
                 when :prime?.to_proc
@@ -260,6 +260,49 @@ RSpec.describe Monar do
       val, st = state.run_state(:saved)
       expect(val).to eq(nil)
       expect(st).to eq(:saved)
+    end
+  end
+
+  describe Monar::Parser do
+    describe ".anychar" do
+      it "return consumed char and remained string" do
+        parser = Monar::Parser.anychar
+        expect(parser.run_parser("foo")).to eq([["f", "oo"]])
+      end
+
+      it "combinatable" do
+        parser = Monar::Parser.anychar.monad do |a|
+          b <<= Monar::Parser.anychar
+          pure([a, b])
+        end
+        expect(parser.run_parser("abc")).to eq([[["a", "b"], "c"]])
+      end
+    end
+
+    describe ".satisfy" do
+      it "return consumed char and remained string" do
+        parser = Monar::Parser.satisfy(->(char) { char == "f" })
+        expect(parser.run_parser("foo")).to eq([["f", "oo"]])
+        expect(parser.run_parser("bar")).to eq([])
+      end
+    end
+
+    describe ".char" do
+      it "return consumed char and remained string" do
+        parser = Monar::Parser.char("f")
+        expect(parser.run_parser("foo")).to eq([["f", "oo"]])
+        expect(parser.run_parser("bar")).to eq([])
+      end
+
+      it "combinate" do
+        parser = Monar::Parser.char("f").monad do |c1|
+          c2 <<= Monar::Parser.char("o")
+          c3 <<= Monar::Parser.char("o")
+          pure([c1, c2, c3])
+        end
+        expect(parser.run_parser("foo")).to eq([[["f", "o", "o"], ""]])
+        expect(parser.run_parser("bar")).to eq([])
+      end
     end
   end
 end
