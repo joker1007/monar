@@ -38,6 +38,16 @@ module Monar
       def char(c)
         satisfy(->(char) { char == c })
       end
+
+      def string(str)
+        return pure "" if str == ""
+
+        c, tail = str[0], str[1..-1]
+        char(c).monad do |c1|
+          cs <<= self.class.string(tail)
+          pure [c1, *cs].join
+        end
+      end
     end
 
     def flat_map(&pr)

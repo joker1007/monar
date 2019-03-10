@@ -304,5 +304,22 @@ RSpec.describe Monar do
         expect(parser.run_parser("bar")).to eq([])
       end
     end
+
+    describe ".string" do
+      it "return consumed char and remained string" do
+        parser = Monar::Parser.string("foo")
+        expect(parser.run_parser("foo")).to eq([["foo", ""]])
+      end
+
+      it "combinate" do
+        parser = Monar::Parser.string("foo").monad do |cs1|
+          cs2 <<= Monar::Parser.string("bar")
+          c <<= Monar::Parser.char("2")
+          pure([cs1, cs2, c].join)
+        end
+        expect(parser.run_parser("foobar2")).to eq([["foobar2", ""]])
+        expect(parser.run_parser("foobar")).to eq([])
+      end
+    end
   end
 end
