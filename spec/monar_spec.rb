@@ -321,5 +321,51 @@ RSpec.describe Monar do
         expect(parser.run_parser("foobar")).to eq([])
       end
     end
+
+    describe ".one_of" do
+      it "return consumed char and remained string" do
+        parser = Monar::Parser.one_of(%w(x y z))
+        expect(parser.run_parser("abc")).to eq([])
+        expect(parser.run_parser("xyz")).to eq([["x", "yz"]])
+      end
+
+      it "combinate" do
+        parser = Monar::Parser.one_of(%w(x y z)).monad do |c1|
+          c2 <<= Monar::Parser.one_of(%w(a y z))
+          pure([c1, c2].join)
+        end
+        expect(parser.run_parser("ax")).to eq([])
+        expect(parser.run_parser("xa")).to eq([["xa", ""]])
+        expect(parser.run_parser("xy")).to eq([["xy", ""]])
+      end
+    end
+
+    describe "#|" do
+      it "combine with other parser" do
+        parser1 = Monar::Parser.char("a")
+        parser2 = Monar::Parser.char("z")
+        combined = parser1 | parser2
+        expect(combined.run_parser("abc")).to eq([["a", "bc"]])
+      end
+
+      it "combine with other parser and return multi candidates" do
+        parser1 = Monar::Parser.char("a")
+        parser2 = Monar::Parser.string("bcd")
+        combined = parser1 | parser2
+        expect(combined.run_parser("abc")).to eq([["a", "bc"]])
+        expect(combined.run_parser("bcd")).to eq([["bcd", ""]])
+      end
+
+      it "combinate" do
+        parser = Monar::Parser.one_of(%w(x y z)).monad do |c1|
+          char_or_string <<= Monar::Parser.one_of(%w(b y z)) | Monar::Parser.string("arahabika")
+          pure([c1, char_or_string].join)
+        end
+        expect(parser.run_parser("ax")).to eq([])
+        expect(parser.run_parser("xb")).to eq([["xb", ""]])
+        expect(parser.run_parser("xy")).to eq([["xy", ""]])
+        expect(parser.run_parser("zarahabika")).to eq([["zarahabika", ""]])
+      end
+    end
   end
 end

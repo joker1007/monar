@@ -48,6 +48,10 @@ module Monar
           pure [c1, *cs].join
         end
       end
+
+      def one_of(chars)
+        satisfy(->(char) { chars.include?(char) })
+      end
     end
 
     def flat_map(&pr)
@@ -58,6 +62,16 @@ module Monar
             next_parser = pr.call(consumed)
             next_parser.run_parser(remained)
           end
+        end
+      )
+    end
+
+    def |(other)
+      self.class.new(
+        proc do |str|
+          result0 = run_parser(str)
+          result1 = other.run_parser(str)
+          result0.empty? ? result1 : result0
         end
       )
     end
