@@ -45,6 +45,26 @@ RSpec.describe Monar do
       expect(calc.call(3)).to eq(Nothing())
     end
 
+    it "acts as monad_plus (guard)" do
+      calc = ->(val) do
+        Just(val).monad do |x|
+          a = x
+          y <<= pure(a + 14)
+          guard y == 17
+          pure y
+        end
+      end
+
+      expect(calc.call(3)).to eq(Just(17))
+      expect(calc.call(4)).to eq(Nothing())
+      expect(calc.call(2)).to eq(Nothing())
+    end
+
+    it "acts as monad_plus (mplus)" do
+      expect(Just(2).mplus(Just(4))).to eq(Just(6))
+      expect(Just(2).mplus(Nothing())).to eq(Nothing())
+    end
+
     it "acts as applicative" do
       maybe_plus = Just(:+.to_proc)
 

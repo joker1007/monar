@@ -29,6 +29,14 @@ module Monar::Maybe
     other.is_a?(Monar::Maybe) && value == other.value
   end
 
+  def mzero
+    Nothing.new
+  end
+
+  def mplus(other)
+    Just.new(:+.to_proc).ap(self, other)
+  end
+
   private
 
   def rescue_in_monad(ex)
@@ -37,6 +45,7 @@ module Monar::Maybe
   
   class Just
     include Monad
+    include MonadPlus
     include Monar::Maybe
 
     def initialize(value)
@@ -58,6 +67,7 @@ module Monar::Maybe
 
   class Nothing
     include Monad
+    include MonadPlus
     include Monar::Maybe
 
     def initialize(*value)
@@ -68,6 +78,14 @@ module Monar::Maybe
     end
 
     def flat_map(&pr)
+      self
+    end
+
+    def mzero
+      self
+    end
+
+    def mplus(_)
       self
     end
 

@@ -81,7 +81,7 @@ module Monad
 
     block_location = block.source_location
     pr = Monad.proc_cache["#{block_location[0]}:#{block_location[1]}"]
-    unless pr 
+    unless pr
       source = File.readlines(block_location[0])
       ast = RubyVM::AbstractSyntaxTree.of(block); # SCOPE
       args_tbl = ast.children[0]
@@ -129,13 +129,16 @@ module Monad
       buf[0].chop!.concat("; ")
     end
 
-    if __flat_map_target?(node)
+    if __is_bind_statement?(node)
       lvar = node.children[0]
       rhv = node.children[1].children[2]
       if node.first_lineno < rhv.first_lineno
         buf[0].concat("#{"\n" * (rhv.first_lineno - node.first_lineno)}")
       end
       buf[0].concat("(#{Monad.extract_source(source, rhv.first_lineno, rhv.first_column, rhv.last_lineno, rhv.last_column).chomp}).tap { |val| raise('type_mismatch') unless val.is_a?(monad_class) }.flat_map do |#{lvar}|\n#{"pure(#{lvar})\n" if last_stmt}")
+      buf[1] += 1
+    elsif __is_guard_statement?(node)
+      buf[0].concat("(#{Monad.extract_source(source, node.first_lineno, node.first_column, node.last_lineno, node.last_column).chomp}).tap { |val| raise('type_mismatch') unless val.is_a?(monad_class) }.flat_map do\n")
       buf[1] += 1
     else
       buf[0].concat("(#{Monad.extract_source(source, node.first_lineno, node.first_column, node.last_lineno, node.last_column).chomp})\n")
@@ -146,12 +149,39 @@ module Monad
   end
 
   def __flat_map_target?(node)
+    __is_bind_statement?(node) || __is_guard_statement?(node)
+  end
+
+  def __is_bind_statement?(node)
     (node.type == :DASGN || node.type == :DASGN_CURR) &&
       node.children[1].type == :CALL &&
       node.children[1].children[1] == :<<
   end
 
+  def __is_guard_statement?(node)
+    (node.type == :FCALL && node.children[0] == :guard) ||
+      (node.type == :CALL && node.children[1] == :guard)
+  end
+
   def rescue_in_monad(ex)
     raise ex
+  end
+end
+
+module MonadPlus
+  def mzero
+    raise NotImplementedError
+  end
+
+  def mplus(other)
+    raise NotImplementedError
+  end
+
+  def guard(bool)
+    if bool
+      self
+    else
+      mzero
+    end
   end
 end
