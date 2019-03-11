@@ -52,6 +52,28 @@ module Monar
       def one_of(chars)
         satisfy(->(char) { chars.include?(char) })
       end
+
+      def many(parser, level = 1)
+        combined = parser | pure(nil)
+
+        combined.monad do |result|
+          result2 <<=
+            if result.nil?
+              pure(nil)
+            else
+              self.class.many(parser, level + 1)
+            end
+
+          pure([result, result2].compact.flatten(level))
+        end
+      end
+
+      def many1(parser)
+        parser.monad do |result|
+          result2 <<= self.class.many(parser)
+          pure([result, *result2])
+        end
+      end
     end
 
     def flat_map(&pr)

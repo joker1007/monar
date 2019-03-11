@@ -66,6 +66,8 @@ module Monad
   end
 
   def monad(&block)
+    raise ArgumentError.new("No block given") unless block
+
     proc_binding = nil
     trace = TracePoint.new(:line) do |tp|
       proc_binding = tp.binding
@@ -90,7 +92,11 @@ module Monad
       Monad.caller_local_variables["#{block_location[0]}:#{block_location[1]}"] = caller_local_variables
       block_arg = args_tbl[0]
       block_node = ast.children[2]
-      block_node_stmts, block_node_last_stmt = block_node.children[0..-2], block_node.children[-1]
+      if block_node.type == :BLOCK
+        block_node_stmts, block_node_last_stmt = block_node.children[0..-2], block_node.children[-1]
+      else
+        block_node_stmts = []; block_node_last_stmt = block_node
+      end
 
       caller_location = caller_locations(1, 1)[0]
       end_count = 1

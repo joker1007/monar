@@ -387,5 +387,42 @@ RSpec.describe Monar do
         expect(parser.run_parser("zarahabika")).to eq([["zarahabika", ""]])
       end
     end
+
+    describe ".many" do
+      it "can parse many sequence by a parser" do
+        base_parser = Monar::Parser.char("a")
+        parser = Monar::Parser.many(base_parser)
+        expect(parser.run_parser("aaaab")).to eq([[["a", "a", "a", "a"], "b"]])
+        expect(parser.run_parser("baaaab")).to eq([[[], "baaaab"]])
+      end
+
+      it "combinate" do
+        base_parser = Monar::Parser.one_of(%w(1 2 3 4 5 6 7 8 9 0))
+        parser = Monar::Parser.many(base_parser).monad do |digits|
+          pure(digits.join.to_i)
+        end
+
+        expect(parser.run_parser("12345a")).to eq([[12345, "a"]])
+      end
+    end
+
+    describe ".many1" do
+      it "can parse many sequence by a parser" do
+        base_parser = Monar::Parser.char("a")
+        parser = Monar::Parser.many1(base_parser)
+        expect(parser.run_parser("aaaab")).to eq([[["a", "a", "a", "a"], "b"]])
+        expect(parser.run_parser("baaaab")).to eq([])
+      end
+
+      it "combinate" do
+        base_parser = Monar::Parser.one_of(%w(1 2 3 4 5 6 7 8 9 0))
+        parser = Monar::Parser.many1(base_parser).monad do |digits|
+          pure(digits.join.to_i)
+        end
+
+        expect(parser.run_parser("12345a")).to eq([[12345, "a"]])
+        expect(parser.run_parser("a12345")).to eq([])
+      end
+    end
   end
 end
