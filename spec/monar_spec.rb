@@ -6,7 +6,7 @@ RSpec.describe Monar do
   describe Monar::Maybe do
     it "acts as monad" do
       calc = ->(val) do
-        Just(val).monad do |x, a, b, c = 1, *foo, n, m, d: nil, **opts|
+        Just(val).monadic_eval do |x, a, b, c = 1, *foo, n, m, d: nil, **opts|
           a = x; b = :hoge
           y <<= pure(a + 14)
           z <<= case y
@@ -27,7 +27,7 @@ RSpec.describe Monar do
 
     it "returns Nothing if exception is occured in monad" do
       calc = ->(val) do
-        Just(val).monad do |x|
+        Just(val).monadic_eval do |x|
           a = x
           y <<= pure(a + 14)
           raise "error"
@@ -47,7 +47,7 @@ RSpec.describe Monar do
 
     it "acts as monad_plus (guard)" do
       calc = ->(val) do
-        Just(val).monad do |x|
+        Just(val).monadic_eval do |x|
           a = x
           y <<= pure(a + 14)
           guard y == 17
@@ -83,7 +83,7 @@ RSpec.describe Monar do
   describe Monar::Either do
     it "acts as monad" do
       calc = ->(val) do
-        Right(val).monad do |x|
+        Right(val).monadic_eval do |x|
           a = x.odd? ? x : x / 2
           y <<= pure(a + 14)
           z <<= rescue_all { y.prime? ? y : raise("not prime") }
@@ -96,7 +96,7 @@ RSpec.describe Monar do
 
     it "returns Left(ex) if exception is occured in monad" do
       calc = ->(val) do
-        Right(val).monad do |x|
+        Right(val).monadic_eval do |x|
           a = x.odd? ? x : x / 2
           y <<= pure(a + 14)
           raise "error"
@@ -139,7 +139,7 @@ RSpec.describe Monar do
 
     it "acts as monad" do
       calc = ->(*val) do
-        val.monad do |x|
+        val.monadic_eval do |x|
           a = x.odd? ? x : x / 2
           y <<= [a + 14]
           z <<= [y, y + 1, y + 2]
@@ -205,7 +205,7 @@ RSpec.describe Monar do
 
     it "acts as monad" do
       calc = ->(val) do
-        val.monad do |x|
+        val.monadic_eval do |x|
           a = x.odd? ? x : x / 2
           b = Concurrent::Promises.future { sleep 2; 11 }
           c = Concurrent::Promises.future { sleep 1; 3 }
@@ -220,7 +220,7 @@ RSpec.describe Monar do
 
     it "acts as monad (rejected)" do
       calc = ->(val) do
-        val.monad do |x|
+        val.monadic_eval do |x|
           a = x.odd? ?
             x :
             x / 2
@@ -240,7 +240,7 @@ RSpec.describe Monar do
 
     it "returns rejected Future if exception is occured in monad" do
       calc = ->(val) do
-        val.monad do |x|
+        val.monadic_eval do |x|
           a = x.odd? ?
             x :
             x / 2
@@ -262,7 +262,7 @@ RSpec.describe Monar do
 
   describe Monar::State do
     it "acts as monad" do
-      state = Monar::State.pure(5).monad do |n|
+      state = Monar::State.pure(5).monadic_eval do |n|
         status <<= get
         _ <<= if status != :saved
                 result = n * 10
@@ -291,7 +291,7 @@ RSpec.describe Monar do
       end
 
       it "combinatable" do
-        parser = Monar::Parser.anychar.monad do |a|
+        parser = Monar::Parser.anychar.monadic_eval do |a|
           b <<= Monar::Parser.anychar
           pure([a, b])
         end
@@ -315,7 +315,7 @@ RSpec.describe Monar do
       end
 
       it "combinate" do
-        parser = Monar::Parser.char("f").monad do |c1|
+        parser = Monar::Parser.char("f").monadic_eval do |c1|
           c2 <<= Monar::Parser.char("o")
           c3 <<= Monar::Parser.char("o")
           pure([c1, c2, c3])
@@ -332,7 +332,7 @@ RSpec.describe Monar do
       end
 
       it "combinate" do
-        parser = Monar::Parser.string("foo").monad do |cs1|
+        parser = Monar::Parser.string("foo").monadic_eval do |cs1|
           cs2 <<= Monar::Parser.string("bar")
           c <<= Monar::Parser.char("2")
           pure([cs1, cs2, c].join)
@@ -350,7 +350,7 @@ RSpec.describe Monar do
       end
 
       it "combinate" do
-        parser = Monar::Parser.one_of(%w(x y z)).monad do |c1|
+        parser = Monar::Parser.one_of(%w(x y z)).monadic_eval do |c1|
           c2 <<= Monar::Parser.one_of(%w(a y z))
           pure([c1, c2].join)
         end
@@ -377,7 +377,7 @@ RSpec.describe Monar do
       end
 
       it "combinate" do
-        parser = Monar::Parser.one_of(%w(x y z)).monad do |c1|
+        parser = Monar::Parser.one_of(%w(x y z)).monadic_eval do |c1|
           char_or_string <<= Monar::Parser.one_of(%w(b y z)) | Monar::Parser.string("arahabika")
           pure([c1, char_or_string].join)
         end
@@ -398,7 +398,7 @@ RSpec.describe Monar do
 
       it "combinate" do
         base_parser = Monar::Parser.one_of(%w(1 2 3 4 5 6 7 8 9 0))
-        parser = Monar::Parser.many(base_parser).monad do |digits|
+        parser = Monar::Parser.many(base_parser).monadic_eval do |digits|
           pure(digits.join.to_i)
         end
 
@@ -416,7 +416,7 @@ RSpec.describe Monar do
 
       it "combinate" do
         base_parser = Monar::Parser.one_of(%w(1 2 3 4 5 6 7 8 9 0))
-        parser = Monar::Parser.many1(base_parser).monad do |digits|
+        parser = Monar::Parser.many1(base_parser).monadic_eval do |digits|
           pure(digits.join.to_i)
         end
 

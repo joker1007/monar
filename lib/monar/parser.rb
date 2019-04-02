@@ -43,7 +43,7 @@ module Monar
         return pure "" if str == ""
 
         c, tail = str[0], str[1..-1]
-        char(c).monad do |c1|
+        char(c).monadic_eval do |c1|
           cs <<= self.class.string(tail)
           pure [c1, *cs].join
         end
@@ -56,7 +56,7 @@ module Monar
       def many(parser, level = 1)
         combined = parser | pure(nil)
 
-        combined.monad do |result|
+        combined.monadic_eval do |result|
           result2 <<=
             if result.nil?
               pure(nil)
@@ -69,7 +69,7 @@ module Monar
       end
 
       def many1(parser)
-        parser.monad do |result|
+        parser.monadic_eval do |result|
           result2 <<= self.class.many(parser)
           pure([result, *result2])
         end
@@ -94,6 +94,15 @@ module Monar
           result0 = run_parser(str)
           result1 = other.run_parser(str)
           result0.empty? ? result1 : result0
+        end
+      )
+    end
+
+    def chain(other)
+      self.class.new(
+        proc do |str0|
+          result0 = run_parser(str0)
+          other
         end
       )
     end

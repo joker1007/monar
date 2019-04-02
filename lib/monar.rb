@@ -65,7 +65,7 @@ module Monad
     end
   end
 
-  def monad(&block)
+  def monadic_eval(&block)
     raise ArgumentError.new("No block given") unless block
 
     proc_binding = nil
