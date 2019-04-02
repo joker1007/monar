@@ -98,15 +98,6 @@ module Monar
       )
     end
 
-    def chain(other)
-      self.class.new(
-        proc do |str0|
-          result0 = run_parser(str0)
-          other
-        end
-      )
-    end
-
     def run_parser(string)
       @process.call(string)
     end

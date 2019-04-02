@@ -8,7 +8,7 @@ class ArithmeticParser
   end
 
   def number
-    Monar::Parser.many(digit).monad do |d|
+    Monar::Parser.many(digit).monadic_eval do |d|
       pure(d.join.to_i)
     end
   end
@@ -18,14 +18,14 @@ class ArithmeticParser
     Monar::Parser.many(space)
   end
 
-  def plus
-    Monar::Parser.char("+").monad do |_|
+  def add
+    Monar::Parser.char("+").monadic_eval do |_|
       pure(->(a, b) { a + b })
     end
   end
 
-  def minus
-    Monar::Parser.char("-").monad do |_|
+  def sub
+    Monar::Parser.char("-").monadic_eval do |_|
       pure(->(a, b) { a - b })
     end
   end
@@ -38,60 +38,48 @@ class ArithmeticParser
     Monar::Parser.char(")")
   end
 
-  def op_parser
-    plus | minus
+  def addsub
+    add | sub
   end
 
-  def chain_operator(prev = nil)
-    _op_parser = op_parser
-    _number = number
-    _spaces = spaces
-    _chain_operator = method(__method__)
+  def factor
+    _self = self
 
-    if prev
-      _spaces.monad do |_|
-        op <<= _op_parser
-        _ <<= _spaces
-        n2 <<= _number
-        result <<= _chain_operator.call(op.call(prev, n2))
-        pure(result)
-      end | Monar::Parser.pure(prev)
-    else
-      number.monad do |n1|
-        _ <<= _spaces
-        op <<= _op_parser
-        _ <<= _spaces
-        n2 <<= _number
-        result <<= _chain_operator.call(op.call(n1, n2))
-        pure(result)
-      end
+    lparen.monadic_eval do |_|
+      result <<= _self.expression
+      _      <<= _self.rparen
+      pure(result)
+    end | number
+  end
+
+  def expression(prev = nil, prev_op = nil)
+    _self = self
+
+    factor.monadic_eval do |f|
+      result0 = if prev
+                  prev_op.call(prev, f)
+                else
+                  f
+                end
+      _      <<= _self.spaces
+      op     <<= _self.addsub
+      _      <<= _self.spaces
+      result <<= _self.expression(result0, op)
+      pure(result)
+    end | factor.monadic_eval do |f|
+      result0 = if prev
+                  prev_op.call(prev, f)
+                else
+                  f
+                end
+      pure(result0)
     end
   end
 
   def get_parser
-    chain_operator | number
+    expression
   end
 end
 
-pp ArithmeticParser.new.get_parser.run_parser("12345 + 122 - 21000")
-
-# expression = number.monad do |n|
-  # _ <<= spaces
-  # plus_op <<= plus
-  # _ <<= spaces
-# end
-
-# expression_group = lparen.monad do |_|
-  # _ <<= spaces
-  # expression_result <<= expression
-  # _ <<= spaces
-  # _ <<= rparen
-  # pure(expression_result)
-# end
-
-# _statement = expression_group | expression
-# statement = Monar::Parser.many(_statement)
-
-
-#p statement.run_parser("(12346 + 12345)")
-#p statement.run_parser("(12346 + 12345) - 1234")
+pp ArithmeticParser.new.get_parser.run_parser("100 - 200 - (300 - 1000)")
+pp ArithmeticParser.new.get_parser.run_parser("(100 + 200) - (300 + 1000)")
