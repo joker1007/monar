@@ -160,6 +160,9 @@ RSpec.describe Monar do
       array_multi_calc = [:+.to_proc, :*.to_proc]
 
       expect(array_multi_calc.ap([2, 3], [4])).to eq([6, 8, 7, 12])
+
+      array_plus_3 = [->(a, b, c) { a + b + c }]
+      expect(array_plus_3.ap([2, 3], [4, 8], [10, 20])).to eq([16, 26, 20, 30, 17, 27, 21, 31])
     end
 
     it "can apply function having 3+ args" do
