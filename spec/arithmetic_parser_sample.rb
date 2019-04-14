@@ -30,6 +30,18 @@ class ArithmeticParser
     end
   end
 
+  def multiply
+    Monar::Parser.char("*").monadic_eval do |_|
+      pure(->(a, b) { a * b })
+    end
+  end
+
+  def div
+    Monar::Parser.char("/").monadic_eval do |_|
+      pure(->(a, b) { a / b rescue nil })
+    end
+  end
+
   def lparen
     Monar::Parser.char("(")
   end
@@ -42,14 +54,61 @@ class ArithmeticParser
     add | sub
   end
 
-  def factor
+  def prioritized_op
+    multiply | div
+  end
+
+  def factor(prev = nil, prev_op = nil)
     _self = self
 
     lparen.monadic_eval do |_|
+      result0 <<= _self.expression
+      _      <<= _self.rparen
+
+      _      <<= _self.spaces
+      op     <<= _self.prioritized_op
+      _      <<= _self.spaces
+
+      result1 = if prev
+                  prev_op.call(prev, result0)
+                else
+                  result0
+                end
+
+      result2 <<= _self.factor(result1, op)
+      pure(result2)
+    end | lparen.monadic_eval do |_|
       result <<= _self.expression
       _      <<= _self.rparen
+
+      result = if prev
+                  prev_op.call(prev, result)
+                else
+                  result
+                end
+
       pure(result)
-    end | number
+    end | number.monadic_eval do |n|
+      _      <<= _self.spaces
+      op     <<= _self.prioritized_op
+      _      <<= _self.spaces
+
+      result0 = if prev
+                  prev_op.call(prev, n)
+                else
+                  n
+                end
+
+      result <<= _self.factor(result0, op)
+      pure(result)
+    end | number.monadic_eval do |n|
+      result0 = if prev
+                  prev_op.call(prev, n)
+                else
+                  n
+                end
+      pure(result0)
+    end
   end
 
   def expression(prev = nil, prev_op = nil)
@@ -82,4 +141,8 @@ class ArithmeticParser
 end
 
 pp ArithmeticParser.new.get_parser.run_parser("100 - 200 - (300 - 1000)")[0][0]
+pp eval("100 - 200 - (300 - 1000)")
 pp ArithmeticParser.new.get_parser.run_parser("(100 + 200) - (300 + 1000)")[0][0]
+pp eval("(100 + 200) - (300 + 1000)")
+pp ArithmeticParser.new.get_parser.run_parser("(100 - 1 * 10) / (3 * 3)")[0][0]
+pp eval("(100 - 1 * 10) / (3 * 3)")

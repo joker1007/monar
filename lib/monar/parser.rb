@@ -65,7 +65,6 @@ module Monar
             end
 
 
-          raise "hoge"
           pure([result, result2].compact.flatten(level))
         end
       end
