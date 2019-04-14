@@ -114,7 +114,14 @@ module Monad
 
       buf[0].concat("end\n" * buf[1])
       gen = "proc { |#{caller_local_variables.map(&:to_s).join(",")}|  begin; " + buf[0] + "rescue => ex; rescue_in_monad(ex); end; }\n"
-      puts gen
+      if ENV["MONAR_DEBUG"]
+        puts "Generated Proc -----"
+        puts "#{caller_location.path}:"
+        gen.each_line.with_index(caller_location.lineno) do |l, lineno|
+          puts "#{"%04d" % lineno}: #{l}"
+        end
+        puts "--------------------"
+      end
       pr = instance_eval(gen, caller_location.path, caller_location.lineno)
       Monad.proc_cache["#{block_location[0]}:#{block_location[1]}"] = pr
     end
@@ -147,6 +154,8 @@ module Monad
       buf[0].concat("(#{Monad.extract_source(source, node.first_lineno, node.first_column, node.last_lineno, node.last_column).chomp}).tap { |val| raise('type_mismatch') unless val.is_a?(monad_class) }.flat_map do\n")
       buf[1] += 1
     else
+      blank_lines = node.first_lineno - buf[2] - 1
+      buf[0].concat("\n" * blank_lines)
       buf[0].concat("(#{Monad.extract_source(source, node.first_lineno, node.first_column, node.last_lineno, node.last_column).chomp})\n")
     end
 

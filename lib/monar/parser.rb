@@ -64,6 +64,8 @@ module Monar
               self.class.many(parser, level + 1)
             end
 
+
+          raise "hoge"
           pure([result, result2].compact.flatten(level))
         end
       end

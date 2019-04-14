@@ -81,5 +81,5 @@ class ArithmeticParser
   end
 end
 
-pp ArithmeticParser.new.get_parser.run_parser("100 - 200 - (300 - 1000)")
-pp ArithmeticParser.new.get_parser.run_parser("(100 + 200) - (300 + 1000)")
+pp ArithmeticParser.new.get_parser.run_parser("100 - 200 - (300 - 1000)")[0][0]
+pp ArithmeticParser.new.get_parser.run_parser("(100 + 200) - (300 + 1000)")[0][0]
