@@ -154,7 +154,7 @@ module Monad
       buf[0].concat("(#{Monad.extract_source(source, node.first_lineno, node.first_column, node.last_lineno, node.last_column).chomp}).tap { |val| raise('type_mismatch') unless val.is_a?(monad_class) }.flat_map do\n")
       buf[1] += 1
     else
-      blank_lines = node.first_lineno - buf[2] - 1
+      blank_lines = [node.first_lineno - buf[2] - 1, 0].max
       buf[0].concat("\n" * blank_lines)
       buf[0].concat("(#{Monad.extract_source(source, node.first_lineno, node.first_column, node.last_lineno, node.last_column).chomp})\n")
     end
