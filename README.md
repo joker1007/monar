@@ -1,8 +1,6 @@
 # Monar
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/monar`. To experiment with that code, run `bin/console` for an interactive prompt.
-
-TODO: Delete this and the text above, and describe your gem
+This gem is implementation of Monad and Monad syntax in Ruby.
 
 ## Installation
 
@@ -22,7 +20,84 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+**This usage is unstable. It may be changed.**
+
+At first, Define `flat_map` in any object And include `Monad` module.
+
+```ruby
+class Just
+  include Monad
+  include MonadPlus
+  include Monar::Maybe
+
+  def initialize(value)
+    @value = value
+  end
+
+  def fmap(&pr)
+    self.pure(pr.call(@value))
+  end
+
+  def flat_map(&pr)
+    pr.call(@value)
+  end
+
+  # If this monad may returns more than 2 kinds object
+  # Please indicate parent class by `monad_class` method.
+  def monad_class
+    Monar::Maybe
+  end
+end
+
+class Nothing
+  include Monad
+  include MonadPlus
+  include Monar::Maybe
+
+  def initialize(*value)
+  end
+
+  def fmap(&pr)
+    self
+  end
+
+  def flat_map(&pr)
+    self
+  end
+
+  def mzero
+    self
+  end
+
+  def mplus(_)
+    self
+  end
+
+  def monad_class
+    Monar::Maybe
+  end
+end
+```
+
+Use `monadic_eval`.
+
+```ruby
+Just.new(val).monadic_eval do |x|
+  a = x
+  y <<= pure(a + 14)
+  raise "error"
+  z <<= case y
+        when :prime?.to_proc
+          Just.new(y)
+        when 20
+          Just.new(y)
+        else
+          Nothing.new
+        end
+end
+```
+
+The block given for `monadic_eval` must return same `monad_class` object.
 
 ## Development
 
