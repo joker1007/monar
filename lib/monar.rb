@@ -98,7 +98,7 @@ module Monad
         __transform_node(source, buf, stmt_node)
       end
 
-      __transform_node(source, buf, block_node_last_stmt, last_stmt: true)
+      __transform_node(source, buf, block_node_last_stmt)
 
       buf[0].concat("end\n" * buf[1])
       gen = "proc { |#{caller_local_variables.map(&:to_s).join(",")}|  begin; " + buf[0] + "rescue => ex; rescue_in_monad(ex); end; }\n"
@@ -125,7 +125,7 @@ module Monad
     self.class
   end
 
-  def __transform_node(source, buf, node, last_stmt: false)
+  def __transform_node(source, buf, node)
     if buf[2] == node.first_lineno
       buf[0].chop!.concat("; ")
     end
@@ -136,7 +136,7 @@ module Monad
       if node.first_lineno < rhv.first_lineno
         buf[0].concat("#{"\n" * (rhv.first_lineno - node.first_lineno)}")
       end
-      buf[0].concat("(#{Monad.extract_source(source, rhv.first_lineno, rhv.first_column, rhv.last_lineno, rhv.last_column).chomp}).tap { |val| raise('type_mismatch') unless val.is_a?(monad_class) }.flat_map do |#{lvar}|\n#{"pure(#{lvar})\n" if last_stmt}")
+      buf[0].concat("(#{Monad.extract_source(source, rhv.first_lineno, rhv.first_column, rhv.last_lineno, rhv.last_column).chomp}).tap { |val| raise('type_mismatch') unless val.is_a?(monad_class) }.flat_map do |#{lvar}|\n")
       buf[1] += 1
     elsif __is_guard_statement?(node)
       buf[0].concat("(#{Monad.extract_source(source, node.first_lineno, node.first_column, node.last_lineno, node.last_column).chomp}).tap { |val| raise('type_mismatch') unless val.is_a?(monad_class) }.flat_map do\n")

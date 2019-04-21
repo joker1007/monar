@@ -17,6 +17,7 @@ RSpec.describe Monar do
                 else
                   Monar::Maybe.nothing
                 end
+          pure z
         end
       end
 
@@ -39,6 +40,7 @@ RSpec.describe Monar do
                 else
                   Monar::Maybe.nothing
                 end
+          pure z
         end
       end
 
@@ -86,7 +88,7 @@ RSpec.describe Monar do
         Right(val).monadic_eval do |x|
           a = x.odd? ? x : x / 2
           y <<= pure(a + 14)
-          z <<= rescue_all { y.prime? ? y : raise("not prime") }
+          rescue_all { y.prime? ? y : raise("not prime") }
         end
       end
 
@@ -100,7 +102,7 @@ RSpec.describe Monar do
           a = x.odd? ? x : x / 2
           y <<= pure(a + 14)
           raise "error"
-          z <<= rescue_all { y.prime? ? y : raise("not prime") }
+          rescue_all { y.prime? ? y : raise("not prime") }
         end
       end
 
@@ -143,6 +145,7 @@ RSpec.describe Monar do
           a = x.odd? ? x : x / 2
           y <<= [a + 14]
           z <<= [y, y + 1, y + 2]
+          pure z
         end
       end
 
