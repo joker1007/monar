@@ -1,4 +1,5 @@
 require "monar/version"
+require "monar/core_ext/ast"
 
 module Functor
   def fmap(&pr)
@@ -133,17 +134,15 @@ module Monad
       buf[0].chop!.concat("; ")
     end
 
-    if __is_bind_statement?(node)
-      lvar = node.children[0]
-      rhv = node.children[1].children[2]
-      if node.first_lineno < rhv.first_lineno
-        buf[0].concat("#{"\n" * (rhv.first_lineno - node.first_lineno)}")
-      end
-      buf[0].concat("(#{Monad.extract_source(source, rhv.first_lineno, rhv.first_column, rhv.last_lineno, rhv.last_column).chomp}).tap { |val| raise Monad::TypeMismatchError unless val.is_a?(monad_class) }.flat_map do |#{lvar}|\n")
-      buf[1] += 1
-    elsif __is_guard_statement?(node)
-      buf[0].concat("(#{Monad.extract_source(source, node.first_lineno, node.first_column, node.last_lineno, node.last_column).chomp}).tap { |val| raise Monad::TypeMismatchError unless val.is_a?(monad_class) }.flat_map do\n")
-      buf[1] += 1
+    case node
+    in :DASGN, lvar,  [:CALL, _, :<<, rhv]
+      __transform_bind(source, buf, node, lvar, rhv)
+    in :DASGN_CURR, lvar,  [:CALL, _, :<<, rhv]
+      __transform_bind(source, buf, node, lvar, rhv)
+    in :FCALL, :guard, *_
+      __transform_guard(source, buf, node)
+    in :CALL, :guard, *_
+      __transform_guard(source, buf, node)
     else
       blank_lines = [node.first_lineno - buf[2] - 1, 0].max
       buf[0].concat("\n" * blank_lines)
@@ -154,19 +153,17 @@ module Monad
     buf
   end
 
-  def __flat_map_target?(node)
-    __is_bind_statement?(node) || __is_guard_statement?(node)
+  def __transform_bind(source, buf, node, lvar, rhv)
+    if node.first_lineno < rhv.first_lineno
+      buf[0].concat("#{"\n" * (rhv.first_lineno - node.first_lineno)}")
+    end
+    buf[0].concat("(#{Monad.extract_source(source, rhv.first_lineno, rhv.first_column, rhv.last_lineno, rhv.last_column).chomp}).tap { |val| raise('type_mismatch') unless val.is_a?(monad_class) }.flat_map do |#{lvar}|\n")
+    buf[1] += 1
   end
 
-  def __is_bind_statement?(node)
-    (node.type == :DASGN || node.type == :DASGN_CURR) &&
-      node.children[1].type == :CALL &&
-      node.children[1].children[1] == :<<
-  end
-
-  def __is_guard_statement?(node)
-    (node.type == :FCALL && node.children[0] == :guard) ||
-      (node.type == :CALL && node.children[1] == :guard)
+  def __transform_guard(source, buf, node)
+    buf[0].concat("(#{Monad.extract_source(source, node.first_lineno, node.first_column, node.last_lineno, node.last_column).chomp}).tap { |val| raise Monad::TypeMismatchError unless val.is_a?(monad_class) }.flat_map do\n")
+    buf[1] += 1
   end
 
   def rescue_in_monad(ex)
