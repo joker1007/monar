@@ -68,19 +68,7 @@ module Monad
   def monadic_eval(&block)
     raise ArgumentError.new("No block given") unless block
 
-    proc_binding = nil
-    trace = TracePoint.new(:line) do |tp|
-      proc_binding = tp.binding
-      throw :escape
-    end
-
-    catch(:escape) do
-      trace.enable(target: block)
-      yield
-    ensure
-      trace.disable
-    end
-
+    proc_binding = block.binding
     block_location = block.source_location
     pr = Monad.proc_cache["#{block_location[0]}:#{block_location[1]}"]
     unless pr
