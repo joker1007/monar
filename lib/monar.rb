@@ -37,6 +37,9 @@ module Applicative
 end
 
 module Monad
+  class TypeMismatchError < StandardError
+  end
+
   def self.included(base)
     base.include(Functor)
     base.include(Applicative)
@@ -101,7 +104,7 @@ module Monad
       __transform_node(source, buf, block_node_last_stmt)
 
       buf[0].concat("end\n" * buf[1])
-      gen = "proc { |#{caller_local_variables.map(&:to_s).join(",")}|  begin; " + buf[0] + "rescue => ex; rescue_in_monad(ex); end; }\n"
+      gen = "proc { |#{caller_local_variables.map(&:to_s).join(",")}|  begin; " + buf[0] + "rescue => ex; rescue_in_monad(ex); end.tap { |val| raise Monad::TypeMismatchError unless val.is_a?(monad_class) }; }\n"
       if ENV["MONAR_DEBUG"]
         puts "Generated Proc -----"
         puts "#{caller_location.path}:"
@@ -136,10 +139,10 @@ module Monad
       if node.first_lineno < rhv.first_lineno
         buf[0].concat("#{"\n" * (rhv.first_lineno - node.first_lineno)}")
       end
-      buf[0].concat("(#{Monad.extract_source(source, rhv.first_lineno, rhv.first_column, rhv.last_lineno, rhv.last_column).chomp}).tap { |val| raise('type_mismatch') unless val.is_a?(monad_class) }.flat_map do |#{lvar}|\n")
+      buf[0].concat("(#{Monad.extract_source(source, rhv.first_lineno, rhv.first_column, rhv.last_lineno, rhv.last_column).chomp}).tap { |val| raise Monad::TypeMismatchError unless val.is_a?(monad_class) }.flat_map do |#{lvar}|\n")
       buf[1] += 1
     elsif __is_guard_statement?(node)
-      buf[0].concat("(#{Monad.extract_source(source, node.first_lineno, node.first_column, node.last_lineno, node.last_column).chomp}).tap { |val| raise('type_mismatch') unless val.is_a?(monad_class) }.flat_map do\n")
+      buf[0].concat("(#{Monad.extract_source(source, node.first_lineno, node.first_column, node.last_lineno, node.last_column).chomp}).tap { |val| raise Monad::TypeMismatchError unless val.is_a?(monad_class) }.flat_map do\n")
       buf[1] += 1
     else
       blank_lines = [node.first_lineno - buf[2] - 1, 0].max

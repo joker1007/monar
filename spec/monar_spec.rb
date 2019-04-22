@@ -26,6 +26,18 @@ RSpec.describe Monar do
       expect(calc.call(2)).to eq(Nothing())
     end
 
+    it "raise error if monadic_eval block returns different type object" do
+      calc = ->(val) do
+        Just(val).monadic_eval do |x, a, b, c = 1, *foo, n, m, d: nil, **opts|
+          a = x; b = :hoge
+          y <<= pure(a + 14)
+          y
+        end
+      end
+
+      expect { calc.call(2) }.to raise_error(Monad::TypeMismatchError)
+    end
+
     it "returns Nothing if exception is occured in monad" do
       calc = ->(val) do
         Just(val).monadic_eval do |x|
