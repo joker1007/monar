@@ -47,6 +47,15 @@ module Monad
   end
 
   class << self
+    def ruby_sources(filename)
+      @ruby_sources ||= {}
+      @ruby_sources.fetch(filename) do
+        File.readlines(filename).tap do |s|
+          @ruby_sources[filename] = s
+        end
+      end
+    end
+
     def extract_source(source, first_lineno, first_column, last_lineno, last_column)
       lines = source[(first_lineno - 1)..(last_lineno-1)]
       first_line = lines.shift
@@ -75,7 +84,7 @@ module Monad
     block_location = block.source_location
     pr = Monad.proc_cache["#{block_location[0]}:#{block_location[1]}"]
     unless pr
-      source = File.readlines(block_location[0])
+      source = Monad.ruby_sources(block_location[0])
       ast = RubyVM::AbstractSyntaxTree.of(block); # SCOPE
       args_tbl = ast.children[0]
       args_node = ast.children[1]
